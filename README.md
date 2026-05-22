@@ -1,5 +1,7 @@
 # Real-Time Market Data Stream Processor
 
+**Live demo: [real-time-data-stream-processor.vercel.app](https://real-time-data-stream-processor.vercel.app)**
+
 A high-performance financial data streaming system built in **C++17** with a **React trading dashboard**. Processes real-time market data with **sub-100ms latency** and **10,000+ ticks/second** throughput across 8 concurrent symbols.
 
 ---
@@ -106,7 +108,11 @@ A fully functional institutional trading dashboard built with **Next.js 16**, **
 - Node.js 18+
 - npm
 
-### Run the dashboard
+### Live demo
+
+**[real-time-data-stream-processor.vercel.app](https://real-time-data-stream-processor.vercel.app)** — hosted on Vercel, no setup needed.
+
+### Run locally
 
 ```bash
 cd frontend
