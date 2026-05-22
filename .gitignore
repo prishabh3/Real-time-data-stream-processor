@@ -11,3 +11,8 @@ build/
 *.swo
 # macOS
 .DS_Store
+INTERVIEW_PREP.md
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/tsconfig.tsbuildinfo

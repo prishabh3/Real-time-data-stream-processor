@@ -1,6 +1,6 @@
 # Real-Time Market Data Stream Processor
 
-A high-performance financial data streaming system built in C++17. Processes real-time market data with **sub-100ms latency** and **10,000+ ticks/second** throughput across 8 concurrent symbols.
+A high-performance financial data streaming system built in **C++17** with a **React trading dashboard**. Processes real-time market data with **sub-100ms latency** and **10,000+ ticks/second** throughput across 8 concurrent symbols.
 
 ---
 
@@ -14,6 +14,7 @@ A high-performance financial data streaming system built in C++17. Processes rea
 | **Matching engine** | Price-time priority, partial fills, cancel by ID |
 | **Performance** | Vyukov MPMC lock-free queue, O(1) long-term SMA, cache-line isolation |
 | **Quality** | Thread-safe logger, INI config file, input validation, zero-dependency tests |
+| **Dashboard** | Next.js 16 + React 19 trading UI — live candlestick chart, order book, analytics panel |
 
 ---
 
@@ -93,6 +94,48 @@ make debug        # -g -O0, no optimisation
 make performance  # -O3 -flto -DNDEBUG, link-time optimisation
 make clean        # remove obj/ and bin/
 ```
+
+---
+
+## Trading Dashboard (Frontend)
+
+A fully functional institutional trading dashboard built with **Next.js 16**, **React 19**, **TypeScript**, and **Tailwind CSS v4**.
+
+### Prerequisites
+
+- Node.js 18+
+- npm
+
+### Run the dashboard
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+> The dashboard runs in **mock mode** by default (`NEXT_PUBLIC_USE_MOCK=true` in `frontend/.env.local`) — no backend connection required. It simulates live tick streams at 100ms intervals using the same symbols and data shapes as the C++ backend.
+
+### Dashboard features
+
+| Panel | Details |
+|---|---|
+| **Candlestick chart** | OHLC candles via `lightweight-charts`, 6 timeframes (1m → 1D), SMA overlay |
+| **Order book** | Live bid/ask ladder with depth visualisation and recent trades |
+| **Analytics panel** | RSI, MACD histogram, Bollinger Bands, VWAP — updates every tick |
+| **Watchlist sidebar** | 8 symbols with sparklines, price, and % change |
+| **Status bar** | Connection state, latency, throughput, NYSE clock |
+| **Keyboard shortcuts** | `1–8` to switch symbols, `/` to focus search |
+
+### Tech stack
+
+- **Framework**: Next.js 16.2 (Turbopack)
+- **UI**: React 19, Tailwind CSS v4, Radix UI primitives, Lucide icons
+- **Charts**: `lightweight-charts` v5
+- **State**: Zustand v5
+- **Language**: TypeScript 5
 
 ---
 
@@ -286,6 +329,16 @@ Output format:
 │   ├── TestRunner.h         # Zero-dependency test framework
 │   ├── tests.cpp            # 80 unit tests
 │   └── benchmark.cpp        # Latency & throughput benchmarks
+├── frontend/                # React trading dashboard
+│   ├── app/                 # Next.js app router
+│   ├── components/          # Chart, OrderBook, Analytics, Sidebar, StatusBar
+│   ├── lib/
+│   │   ├── mock/            # Simulated market data generators
+│   │   └── websocket/       # Data stream hooks
+│   ├── store/               # Zustand state (market, orderbook, metrics)
+│   ├── public/
+│   ├── .env.local           # NEXT_PUBLIC_USE_MOCK=true
+│   └── package.json
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   └── PERFORMANCE.md
@@ -298,11 +351,11 @@ Output format:
 
 ## Roadmap
 
-- [ ] WebSocket feed adapter (Binance / Polygon.io)
+- [ ] WebSocket feed adapter (Binance / Polygon.io) — connect dashboard to live data
 - [ ] Historical data replay and strategy backtesting
 - [ ] SIMD-accelerated analytics (AVX2)
 - [ ] Prometheus metrics endpoint
-- [ ] GUI dashboard (ImGui or web-based)
+- [x] GUI trading dashboard (Next.js + React)
 
 ---
 
