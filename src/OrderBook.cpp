@@ -1,4 +1,5 @@
 #include "OrderBook.h"
+#include "Logger.h"
 #include <algorithm>
 #include <stdexcept>
 #include <limits>
@@ -8,47 +9,62 @@ namespace MarketData {
 OrderBook::OrderBook(const std::string& sym) : symbol(sym) {}
 
 void OrderBook::addOrder(const Order& order) {
-    std::lock_guard<std::mutex> lock(bookMutex);
-    
-    if (order.isBuy) {
-        auto it = bids.find(order.price);
-        if (it != bids.end()) {
-            it->second.addOrder(order);
-        } else {
-            PriceLevel level(order.price);
-            level.addOrder(order);
-            bids[order.price] = level;
-        }
-    } else {
-        auto it = asks.find(order.price);
-        if (it != asks.end()) {
-            it->second.addOrder(order);
-        } else {
-            PriceLevel level(order.price);
-            level.addOrder(order);
-            asks[order.price] = level;
-        }
+    if (order.orderId.empty()) {
+        LOG_WARN("OrderBook[" << symbol << "]: rejected order with empty ID");
+        return;
     }
+    if (order.price <= 0.0) {
+        LOG_WARN("OrderBook[" << symbol << "]: rejected order " << order.orderId
+                 << " — invalid price " << order.price);
+        return;
+    }
+    if (order.quantity <= 0) {
+        LOG_WARN("OrderBook[" << symbol << "]: rejected order " << order.orderId
+                 << " — invalid quantity " << order.quantity);
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(bookMutex);
+
+    if (orderIndex.count(order.orderId)) {
+        LOG_WARN("OrderBook[" << symbol << "]: duplicate order ID " << order.orderId
+                 << " — ignoring");
+        return;
+    }
+
+    orderIndex[order.orderId] = order.price;
+
+    if (order.isBuy) {
+        bids[order.price].addOrder(order);
+    } else {
+        asks[order.price].addOrder(order);
+    }
+
+    LOG_DEBUG("OrderBook[" << symbol << "]: added "
+              << (order.isBuy ? "BID" : "ASK")
+              << " " << order.orderId
+              << " qty=" << order.quantity << " @ " << order.price);
 }
 
 void OrderBook::removeOrder(const std::string& orderId, bool isBuy) {
     std::lock_guard<std::mutex> lock(bookMutex);
-    
+
+    auto idxIt = orderIndex.find(orderId);
+    if (idxIt == orderIndex.end()) return;
+    double price = idxIt->second;
+    orderIndex.erase(idxIt);
+
     if (isBuy) {
-        for (auto& [price, level] : bids) {
-            level.removeOrder(orderId);
-            if (level.orders.empty()) {
-                bids.erase(price);
-                break;
-            }
+        auto levelIt = bids.find(price);
+        if (levelIt != bids.end()) {
+            levelIt->second.removeOrder(orderId);
+            if (levelIt->second.orders.empty()) bids.erase(levelIt);
         }
     } else {
-        for (auto& [price, level] : asks) {
-            level.removeOrder(orderId);
-            if (level.orders.empty()) {
-                asks.erase(price);
-                break;
-            }
+        auto levelIt = asks.find(price);
+        if (levelIt != asks.end()) {
+            levelIt->second.removeOrder(orderId);
+            if (levelIt->second.orders.empty()) asks.erase(levelIt);
         }
     }
 }
@@ -150,6 +166,7 @@ void OrderBook::clear() {
     std::lock_guard<std::mutex> lock(bookMutex);
     bids.clear();
     asks.clear();
+    orderIndex.clear();
 }
 
 } // namespace MarketData

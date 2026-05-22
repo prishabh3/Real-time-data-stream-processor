@@ -6,18 +6,20 @@
 #include <string>
 #include <vector>
 #include <mutex>
+#include <unordered_map>
 
 namespace MarketData {
 
 struct Order {
     std::string orderId;
+    std::string symbol;
     double price;
     int quantity;
     long long timestamp;
     bool isBuy;
-    
-    Order(const std::string& id, double p, int qty, long long ts, bool buy)
-        : orderId(id), price(p), quantity(qty), timestamp(ts), isBuy(buy) {}
+
+    Order(const std::string& id, const std::string& sym, double p, int qty, long long ts, bool buy)
+        : orderId(id), symbol(sym), price(p), quantity(qty), timestamp(ts), isBuy(buy) {}
 };
 
 struct PriceLevel {
@@ -47,9 +49,10 @@ struct PriceLevel {
 class OrderBook {
 private:
     std::string symbol;
-    // Using std::map (Red-Black Tree) for O(log n) insertion and sorted order
-    std::map<double, PriceLevel, std::greater<double>> bids; // Descending order
-    std::map<double, PriceLevel> asks; // Ascending order
+    std::map<double, PriceLevel, std::greater<double>> bids;
+    std::map<double, PriceLevel> asks;
+    // orderId → price for O(log n) removal without scanning all levels
+    std::unordered_map<std::string, double> orderIndex;
     mutable std::mutex bookMutex;
     
 public:

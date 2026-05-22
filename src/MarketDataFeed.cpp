@@ -1,4 +1,5 @@
 #include "MarketDataFeed.h"
+#include "Logger.h"
 #include <random>
 #include <chrono>
 #include <iostream>
@@ -23,10 +24,10 @@ void MarketDataFeed::start() {
 
 void MarketDataFeed::stop() {
     if (!running.load()) return;
-    
+
     running.store(false);
-    queueCV.notify_all();
-    
+    notifyCV.notify_all(); // wake any sleeping consumers so they can exit
+
     for (auto& thread : feedThreads) {
         if (thread.joinable()) {
             thread.join();
@@ -40,19 +41,17 @@ void MarketDataFeed::setCallback(std::function<void(const TickData&)> callback) 
 }
 
 bool MarketDataFeed::getNextTick(TickData& tick) {
-    std::unique_lock<std::mutex> lock(queueMutex);
-    
-    if (dataQueue.empty()) {
-        return false;
-    }
-    
-    tick = dataQueue.front();
-    dataQueue.pop();
-    return true;
+    return dataQueue.tryPop(tick);
+}
+
+void MarketDataFeed::waitForData(std::chrono::microseconds timeout) {
+    std::unique_lock<std::mutex> lock(notifyMutex);
+    notifyCV.wait_for(lock, timeout, [this] {
+        return !running.load() || dataQueue.size() > 0;
+    });
 }
 
 size_t MarketDataFeed::getQueueSize() const {
-    std::lock_guard<std::mutex> lock(queueMutex);
     return dataQueue.size();
 }
 
@@ -89,14 +88,12 @@ void MarketDataFeed::simulateFeed() {
             ).count();
             
             TickData tick(symbol, currentPrices[symbol], volume, timestamp, "SIMULATED");
-            
-            {
-                std::lock_guard<std::mutex> lock(queueMutex);
-                dataQueue.push(tick);
+
+            if (!dataQueue.tryPush(tick)) {
+                LOG_WARN("MarketDataFeed: queue full — dropping tick for " << symbol);
             }
-            queueCV.notify_one();
-            
-            // Call callback if set
+            notifyCV.notify_one();
+
             if (dataCallback) {
                 dataCallback(tick);
             }

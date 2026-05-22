@@ -1,11 +1,12 @@
 #include "StreamProcessor.h"
+#include "Logger.h"
 #include <iostream>
 #include <iomanip>
 
 namespace MarketData {
 
 StreamProcessor::StreamProcessor(int threadCount)
-    : running(false), numProcessingThreads(threadCount) {
+    : running(false), numProcessingThreads(threadCount), nextOrderId(0) {
     analytics = std::make_shared<Analytics>();
 }
 
@@ -42,7 +43,7 @@ void StreamProcessor::start() {
         processingThreads.emplace_back(&StreamProcessor::processingLoop, this);
     }
     
-    std::cout << "Stream Processor started with " << numProcessingThreads << " threads" << std::endl;
+    LOG_INFO("StreamProcessor started with " << numProcessingThreads << " processing thread(s)");
 }
 
 void StreamProcessor::stop() {
@@ -63,27 +64,27 @@ void StreamProcessor::stop() {
     }
     processingThreads.clear();
     
-    std::cout << "Stream Processor stopped" << std::endl;
+    LOG_INFO("StreamProcessor stopped");
 }
 
 void StreamProcessor::processingLoop() {
-    while (running.load()) {
-        TickData tick("", 0, 0, 0, "");
-        
+    while (running.load(std::memory_order_relaxed)) {
+        TickData tick;
+
         if (dataFeed->getNextTick(tick)) {
             auto startTime = std::chrono::high_resolution_clock::now();
-            
+
             processTick(tick);
-            
+
             auto endTime = std::chrono::high_resolution_clock::now();
             long long latencyNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
                 endTime - startTime
             ).count();
-            
+
             updateMetrics(latencyNs);
         } else {
-            // No data available, sleep briefly to avoid busy waiting
-            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            // Block on CV until new data arrives or 500µs elapses
+            dataFeed->waitForData(std::chrono::microseconds(500));
         }
     }
 }
@@ -95,9 +96,10 @@ void StreamProcessor::processTick(const TickData& tick) {
     // Check for price alerts
     auto triggeredAlerts = analytics->checkAlerts(tick.symbol, tick.price);
     for (const auto& alert : triggeredAlerts) {
-        std::cout << "[ALERT] " << alert.symbol << " price " 
-                  << (alert.isAbove ? "above" : "below") << " " 
-                  << alert.targetPrice << " (current: " << tick.price << ")" << std::endl;
+        LOG_WARN("PRICE ALERT: " << alert.symbol
+                 << " is " << (alert.isAbove ? "above" : "below")
+                 << " target " << alert.targetPrice
+                 << "  (current: " << tick.price << ")");
     }
     
     // Update order book (simulate market orders based on tick)
@@ -105,15 +107,14 @@ void StreamProcessor::processTick(const TickData& tick) {
     auto orderBook = orderBooks[tick.symbol];
     if (orderBook) {
         // For simulation: add some bid/ask orders around current price
-        static int orderId = 0;
-        
-        // Add a bid slightly below current price
-        Order bid("BID_" + std::to_string(orderId++), 
+        int bidId = nextOrderId.fetch_add(1);
+        int askId = nextOrderId.fetch_add(1);
+
+        Order bid("BID_" + std::to_string(bidId), tick.symbol,
                   tick.price * 0.999, tick.volume / 2, tick.timestamp, true);
         orderBook->addOrder(bid);
-        
-        // Add an ask slightly above current price
-        Order ask("ASK_" + std::to_string(orderId++), 
+
+        Order ask("ASK_" + std::to_string(askId), tick.symbol,
                   tick.price * 1.001, tick.volume / 2, tick.timestamp, false);
         orderBook->addOrder(ask);
     }
@@ -189,7 +190,7 @@ void StreamProcessor::addDataSource(const std::string& source, const std::string
 }
 
 void StreamProcessor::submitOrder(const Order& order) {
-    auto orderBook = getOrderBook(order.orderId);
+    auto orderBook = getOrderBook(order.symbol);
     if (orderBook) {
         orderBook->addOrder(order);
     }

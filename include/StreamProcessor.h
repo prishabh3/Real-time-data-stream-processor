@@ -37,14 +37,18 @@ private:
     
     // Processing threads
     std::vector<std::thread> processingThreads;
-    std::atomic<bool> running;
-    
-    // Performance tracking
-    PerformanceMetrics metrics;
+
+    // Isolated on its own cache line: read/written by every processing thread
+    alignas(64) std::atomic<bool> running;
+
+    // Performance tracking (separate cache line from `running`)
+    alignas(64) PerformanceMetrics metrics;
     mutable std::mutex metricsMutex;
-    
-    // Lock-free design consideration: Thread count
+
     int numProcessingThreads;
+
+    // Thread-safe order ID counter
+    alignas(64) std::atomic<int> nextOrderId;
     
     void processingLoop();
     void processTick(const TickData& tick);

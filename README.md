@@ -1,269 +1,311 @@
 # Real-Time Market Data Stream Processor
 
-A high-performance financial data streaming system designed to process real-time market data with **sub-100ms latency** and handle **10,000+ updates per second**. Built in C++ with Bloomberg Terminal-level performance characteristics.
-
-## 🎯 Project Overview
-
-This project demonstrates professional-grade financial data processing capabilities:
-
-- **Real-time data ingestion** from multiple sources (Alpha Vantage, Yahoo Finance, simulated feeds)
-- **Low-latency processing** using efficient data structures and multi-threading
-- **Order book management** with Red-Black Tree implementation for O(log n) operations
-- **Real-time analytics** including moving averages, volatility indicators, and price alerts
-- **Scalable architecture** supporting concurrent data streams
-
-## 🏗️ Architecture
-
-### Core Components
-
-1. **OrderBook** (`include/OrderBook.h`, `src/OrderBook.cpp`)
-   - Red-Black Tree (std::map) implementation for bid/ask price levels
-   - O(log n) insertion and removal
-   - Thread-safe operations with mutex protection
-   - Best bid/ask retrieval, spread calculation, depth analysis
-
-2. **MarketDataFeed** (`include/MarketDataFeed.h`, `src/MarketDataFeed.cpp`)
-   - Multi-threaded data ingestion
-   - Support for multiple data sources (simulated, Alpha Vantage, Yahoo Finance)
-   - Thread-safe queue with condition variables
-   - Configurable update frequency
-
-3. **Analytics** (`include/Analytics.h`, `src/Analytics.cpp`)
-   - Circular buffers for efficient memory usage
-   - Sliding window algorithms for moving averages
-   - Real-time calculations: SMA, EMA, volatility, VWAP
-   - Price alert system with configurable thresholds
-
-4. **StreamProcessor** (`include/StreamProcessor.h`, `src/StreamProcessor.cpp`)
-   - Event-driven processing architecture
-   - Multi-threaded processing with configurable thread pool
-   - Performance metrics tracking (latency, throughput)
-   - Normalized data handling from multiple sources
-
-## 📊 Key Technical Features
-
-### Data Structures
-- **Priority Queues**: Time-series ordering of market data
-- **Hash Tables**: O(1) ticker symbol lookups
-- **Balanced Trees**: Red-Black Tree for order book price levels
-- **Circular Buffers**: Efficient sliding window for analytics
-
-### Algorithms
-- **Sliding Window**: Moving average calculations
-- **Event-Driven Processing**: Asynchronous tick processing
-- **Random Walk Simulation**: Realistic market data generation
-
-### Performance Metrics
-- **Target Latency**: < 100ms end-to-end processing
-- **Target Throughput**: > 10,000 updates/second
-- **Multi-threading**: 4 parallel processing threads
-- **Lock-Free Design**: Minimized contention points
-
-## 🚀 Getting Started
-
-### Prerequisites
-- C++17 compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
-- CMake 3.10+ (optional, Makefile also provided)
-- POSIX threads library
-
-### Building the Project
-
-#### Option 1: Using CMake (Recommended)
-```bash
-cd market-data-processor
-mkdir build && cd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make
-./market_data_processor
-```
-
-#### Option 2: Using Makefile
-```bash
-cd market-data-processor
-make performance    # Maximum optimization
-./bin/market_data_processor
-```
-
-#### Build Configurations
-- **Development**: `make` or `cmake -DCMAKE_BUILD_TYPE=Debug`
-- **Performance**: `make performance` or `cmake -DCMAKE_BUILD_TYPE=Release`
-- **Debug**: `make debug`
-
-### Running the Application
-
-```bash
-# Using CMake build
-./build/market_data_processor
-
-# Using Makefile build
-./bin/market_data_processor
-
-# Or use make run
-make run
-```
-
-## 📈 Performance Benchmarks
-
-The system is designed to achieve Bloomberg Terminal-level performance:
-
-| Metric | Target | Achieved |
-|--------|--------|----------|
-| Average Latency | < 100ms | ~0.5-5ms |
-| Peak Latency | < 200ms | ~10-20ms |
-| Throughput | > 10K ticks/sec | 15K-25K ticks/sec |
-| Symbols Tracked | 8+ concurrent | Scalable |
-| Processing Threads | 4 | Configurable |
-
-*Note: Benchmarks measured on simulated data. Real-world performance may vary based on network latency and API rate limits.*
-
-## 🔧 Configuration
-
-### Symbols Tracked
-Default configuration tracks 8 major stocks:
-- **AAPL** - Apple Inc.
-- **GOOGL** - Alphabet Inc.
-- **MSFT** - Microsoft Corporation
-- **AMZN** - Amazon.com Inc.
-- **TSLA** - Tesla Inc.
-- **NVDA** - NVIDIA Corporation
-- **JPM** - JPMorgan Chase & Co.
-- **BAC** - Bank of America Corp.
-
-Edit `src/main.cpp` to modify symbols or add data sources.
-
-### Threading Configuration
-Adjust `NUM_THREADS` in `main.cpp`:
-```cpp
-const int NUM_THREADS = 4; // Recommended: CPU core count
-```
-
-### Data Feed Frequency
-Modify update frequency in `StreamProcessor.cpp`:
-```cpp
-dataFeed = std::make_shared<MarketDataFeed>(symbols, 10); // 10ms intervals
-```
-
-## 📚 Advanced Features
-
-### Price Alerts
-```cpp
-analytics->addAlert(PriceAlert("AAPL", 200.0, true));   // Alert when AAPL > $200
-analytics->addAlert(PriceAlert("TSLA", 150.0, false));  // Alert when TSLA < $150
-```
-
-### Order Book Operations
-```cpp
-auto orderBook = processor.getOrderBook("AAPL");
-double bestBid = orderBook->getBestBid();
-double bestAsk = orderBook->getBestAsk();
-double spread = orderBook->getSpread();
-auto bids = orderBook->getBidLevels(10); // Top 10 bid levels
-```
-
-### Analytics Queries
-```cpp
-auto analytics = processor.getAnalytics();
-double sma20 = analytics->getShortTermSMA("AAPL");
-double volatility = analytics->calculateVolatility("AAPL");
-double vwap = analytics->calculateVWAP("AAPL", 20);
-```
-
-## 🔬 Technical Implementation Details
-
-### Thread Safety
-- Mutex protection for shared data structures
-- Lock-free queue design for minimal contention
-- Condition variables for efficient thread synchronization
-
-### Memory Efficiency
-- Circular buffers prevent unbounded memory growth
-- Configurable history window sizes (20, 50, 200 ticks)
-- Smart pointer management for automatic cleanup
-
-### Scalability Considerations
-- Thread pool architecture for parallel processing
-- Hash-based symbol lookup for O(1) access
-- Modular design for easy extension
-
-## 📁 Project Structure
-
-```
-market-data-processor/
-├── include/              # Header files
-│   ├── OrderBook.h       # Order book with Red-Black Tree
-│   ├── MarketDataFeed.h  # Multi-source data ingestion
-│   ├── Analytics.h       # Real-time analytics engine
-│   └── StreamProcessor.h # Main processing coordinator
-├── src/                  # Implementation files
-│   ├── OrderBook.cpp
-│   ├── MarketDataFeed.cpp
-│   ├── Analytics.cpp
-│   ├── StreamProcessor.cpp
-│   └── main.cpp          # Application entry point
-├── tests/                # Unit tests (future expansion)
-├── config/               # Configuration files
-├── docs/                 # Additional documentation
-├── CMakeLists.txt        # CMake build configuration
-├── Makefile              # Make build configuration
-└── README.md             # This file
-```
-
-## 🎓 Why This Matters for Bloomberg
-
-This project directly addresses Bloomberg Terminal's core technical challenges:
-
-1. **Real-time Processing**: Sub-50ms latency requirement for 350,000+ terminals
-2. **Data Structure Expertise**: Red-Black Trees, hash tables, priority queues
-3. **Performance Optimization**: Multi-threading, lock-free design, memory efficiency
-4. **Financial Domain**: Order books, market data, analytics calculations
-5. **Language Proficiency**: C++ for performance-critical systems
-6. **Scalability**: Handling multiple concurrent data streams
-
-## 📊 Sample Output
-
-```
-========================================
-  Real-Time Market Data Stream Processor
-  High-Performance Financial Data System
-========================================
-
-Tracking 8 symbols: AAPL, GOOGL, MSFT, AMZN, TSLA, NVDA, JPM, BAC
-
-========== Performance Metrics ==========
-Total Ticks Processed: 45,823
-Average Latency: 2.34 ms
-Peak Latency: 18.72 ms
-Throughput: 22,911.50 ticks/sec
-=========================================
-
-========== Analytics: AAPL ==========
-Short-term SMA (20): $178.45
-Medium-term SMA (50): $179.23
-Long-term SMA (200): $180.12
-EMA (20): $178.67
-Volatility: 2.34
-VWAP (20): $178.89
-==========================================
-```
-
-## 🚧 Future Enhancements
-
-- [ ] WebSocket integration for real-time API feeds
-- [ ] Machine learning price prediction
-- [ ] Historical data replay and backtesting
-- [ ] GUI dashboard with real-time charts
-- [ ] Distributed processing with message queues
-- [ ] Advanced order types (limit, stop-loss, etc.)
-- [ ] Market microstructure analysis
-
-## 📄 License
-
-This project is created for educational and demonstration purposes.
-
-## 👤 Author
-
-Created as a demonstration of high-performance financial systems engineering, showcasing skills relevant to Bloomberg's Technical infrastructure.
+A high-performance financial data streaming system built in C++17. Processes real-time market data with **sub-100ms latency** and **10,000+ ticks/second** throughput across 8 concurrent symbols.
 
 ---
 
-**Performance. Precision. Production-Ready.**
+## Features
+
+| Category | What's included |
+|---|---|
+| **Market data** | Lock-free simulated feed, pluggable Alpha Vantage / Yahoo Finance adapters |
+| **Order book** | Red-Black Tree price levels, O(log n) add/remove, O(1) best-bid/ask |
+| **Analytics** | SMA, EMA, VWAP, Volatility, **RSI**, **MACD**, **Bollinger Bands**, price alerts |
+| **Matching engine** | Price-time priority, partial fills, cancel by ID |
+| **Performance** | Vyukov MPMC lock-free queue, O(1) long-term SMA, cache-line isolation |
+| **Quality** | Thread-safe logger, INI config file, input validation, zero-dependency tests |
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- C++17 compiler (GCC 7+, Clang 5+)
+- POSIX threads (`-pthread`)
+- `make`
+
+### Build & run
+
+```bash
+# Clone
+git clone https://github.com/prishabh3/Real-time-data-stream-processor
+cd Real-time-data-stream-processor
+
+# Build (optimised — O3 + march=native)
+make
+
+# Run the 30-second demo
+make run
+# or directly:
+./bin/market_data_processor
+```
+
+### Run tests
+
+```bash
+make test
+```
+
+Expected output:
+```
+  PASS  buf.getSize() == 0u
+  PASS  book.getBestBid() ≈ 100.0
+  PASS  rHigh.isOverbought
+  PASS  t3.size() == 1u
+  ...
+  80 / 80 tests passed  ✓ all green
+```
+
+### Run benchmarks
+
+```bash
+make benchmark
+```
+
+Sample results (Apple M-series, `-O3 -march=native`):
+
+```
+[Lock-Free Queue]
+  SPSC round-trip (2 M items)                 11 ns/op   ~90 M-ops/s
+
+[Analytics]
+  updateTick                                  67 ns/op   ~15 M-ops/s
+  calculateSMA(20)                            18 ns/op   ~54 M-ops/s
+  getLongTermSMA  (O(1) running sum)          12 ns/op   ~83 M-ops/s
+  calculateMACD   (O(1) streaming state)      10 ns/op  ~100 M-ops/s
+  calculateRSI(14)                            85 ns/op   ~12 M-ops/s
+  calculateBollingerBands(20)                 38 ns/op   ~26 M-ops/s
+
+[OrderBook]
+  addOrder                                   306 ns/op    ~3 M-ops/s
+  removeOrder  (orderId-index, O(log n))     380 ns/op    ~3 M-ops/s
+
+[MatchingEngine]
+  submitOrder (mixed buy/sell)               160 ns/op    ~6 M-ops/s
+  → 76 634 trades at 76.6 % match rate
+```
+
+### Other build targets
+
+```bash
+make debug        # -g -O0, no optimisation
+make performance  # -O3 -flto -DNDEBUG, link-time optimisation
+make clean        # remove obj/ and bin/
+```
+
+---
+
+## Configuration
+
+All runtime settings live in `config.ini` — no recompilation needed.
+
+```ini
+[processor]
+symbols             = AAPL,GOOGL,MSFT,AMZN,TSLA,NVDA,JPM,BAC
+thread_count        = 4
+update_frequency_ms = 10
+demo_duration_sec   = 30
+
+[logging]
+# DEBUG | INFO | WARN | ERROR
+level        = INFO
+log_to_file  = false
+log_file     = market_data.log
+
+[alerts]
+# Fires when the named symbol crosses the threshold
+AAPL_above = 200.0
+TSLA_below = 150.0
+```
+
+If `config.ini` is absent the application falls back to safe built-in defaults and logs a warning.
+
+---
+
+## Architecture
+
+```
+config.ini
+    │
+    ▼
+main.cpp  ──────────────────────────────────────────────────────┐
+    │                                                            │
+    ▼                                                            ▼
+StreamProcessor                                         MatchingEngine
+    ├── MarketDataFeed  (lock-free MPMC queue, CV wake)
+    ├── OrderBook × N  (Red-Black Tree + orderId index)
+    └── Analytics       (CircularBuffer + streaming EMA state)
+            ├── SMA / EMA / VWAP / StdDev
+            ├── RSI  (Wilder smoothing)
+            ├── MACD (streaming EMA12/26/signal — O(1))
+            └── Bollinger Bands
+```
+
+### Core components
+
+| File | Responsibility |
+|---|---|
+| `include/OrderBook.h` | Bid/ask price levels, orderId→price index |
+| `include/MarketDataFeed.h` | Lock-free tick queue, feed threads |
+| `include/Analytics.h` | Circular buffer, all indicator declarations |
+| `include/StreamProcessor.h` | Thread pool, metrics, wires everything together |
+| `include/MatchingEngine.h` | Price-time priority matching, partial fills |
+| `include/LockFreeQueue.h` | Vyukov bounded MPMC queue template |
+| `include/Logger.h` | Thread-safe levelled logger with ANSI colours |
+| `include/Config.h` | INI file parser with typed accessors |
+
+---
+
+## Performance design
+
+### Lock-free data path
+
+The hot path (producer → consumer) uses `LockFreeQueue<TickData, 65536>` — a Dmitry Vyukov bounded MPMC queue. Push and pop are CAS loops with no kernel calls. A lightweight condition variable wakes sleeping consumers instead of the old 100 µs busy-sleep.
+
+### O(1) analytics
+
+- **Long-term SMA**: `CircularBuffer` maintains a running sum updated on every push (add new value, subtract evicted value). No loop needed.
+- **MACD**: `Analytics::updateTick` advances `ema12`, `ema26`, and `signalLine` in-place. `calculateMACD()` is a single struct read — O(1).
+- **RSI**: Wilder's exponential smoothing over the stored price history. O(period).
+- **Bollinger Bands**: one SMA + one StdDev pass over the window. O(period).
+
+### Cache-line isolation
+
+`std::atomic<bool> running` and `PerformanceMetrics metrics` are each decorated with `alignas(64)` in `StreamProcessor`. This prevents false sharing between the per-tick loop check and the per-tick metrics update across four threads.
+
+### OrderBook removal
+
+`OrderBook` maintains an `unordered_map<orderId, price>`. `removeOrder` looks up the price in O(1) then erases the map entry in O(log n), eliminating the original O(N) full-scan.
+
+---
+
+## Analytics API
+
+```cpp
+auto a = processor.getAnalytics();
+
+// Classic indicators
+double sma   = a->getShortTermSMA("AAPL");       // SMA(20)
+double ema   = a->calculateEMA("AAPL", 20, 0.1);
+double vwap  = a->calculateVWAP("AAPL", 20);
+double vol   = a->calculateVolatility("AAPL");
+
+// RSI
+auto rsi = a->calculateRSI("AAPL");        // period = 14 (default)
+// rsi.value        0–100
+// rsi.isOverbought true when value > 70
+// rsi.isOversold   true when value < 30
+
+// MACD
+auto macd = a->calculateMACD("AAPL");
+// macd.macdLine    EMA(12) − EMA(26)
+// macd.signalLine  EMA(9) of macdLine
+// macd.histogram   macdLine − signalLine
+
+// Bollinger Bands
+auto bb = a->calculateBollingerBands("AAPL");  // period = 20 (default)
+// bb.upper / bb.middle / bb.lower
+// bb.bandwidth  = (upper − lower) / middle
+```
+
+## Order book API
+
+```cpp
+auto book = processor.getOrderBook("AAPL");
+double bid    = book->getBestBid();
+double ask    = book->getBestAsk();
+double spread = book->getSpread();
+int    depth  = book->getDepth(true, 5);   // total qty across top-5 bid levels
+auto   bids   = book->getBidLevels(10);    // vector<pair<price, qty>>
+```
+
+## Matching engine API
+
+```cpp
+MatchingEngine engine;
+
+// Resting limit orders
+engine.submitOrder(Order("B1", "AAPL", 150.0, 100, ts, true));   // buy limit
+engine.submitOrder(Order("A1", "AAPL", 151.0,  50, ts, false));  // sell limit
+
+// Aggressive order — returns all generated trades (may be empty)
+auto trades = engine.submitOrder(Order("A2", "AAPL", 150.0, 80, ts, false));
+for (auto& t : trades)
+    std::cout << t.tradeId << " qty=" << t.quantity << " @ " << t.price << "\n";
+
+engine.cancelOrder("B1", "AAPL", true);  // cancel resting bid
+```
+
+## Logging API
+
+```cpp
+// Set in config.ini or at runtime
+Logger::instance().setLevel("DEBUG");
+Logger::instance().openFile("app.log");
+
+// Anywhere in the codebase:
+LOG_DEBUG("tick received: " << sym << " @ " << price);
+LOG_INFO("processor started with " << n << " threads");
+LOG_WARN("queue full — dropping tick for " << sym);
+LOG_ERROR("invalid order: price=" << p);
+```
+
+Output format:
+```
+[14:32:01.047] [INFO ] StreamProcessor started with 4 processing thread(s)
+[14:32:05.112] [WARN ] [OrderBook.cpp:18] rejected order O9 — invalid price -1
+[14:32:10.334] [WARN ] PRICE ALERT: AAPL is above target 200  (current: 201.34)
+```
+
+---
+
+## Project structure
+
+```
+.
+├── include/
+│   ├── Analytics.h          # Indicator declarations + result structs
+│   ├── Config.h             # INI config loader
+│   ├── LockFreeQueue.h      # Vyukov MPMC ring buffer
+│   ├── Logger.h             # Thread-safe levelled logger
+│   ├── MarketDataFeed.h     # Tick ingestion feed
+│   ├── MatchingEngine.h     # Price-time priority matching engine
+│   ├── OrderBook.h          # Bid/ask order book
+│   └── StreamProcessor.h   # Top-level coordinator
+├── src/
+│   ├── Analytics.cpp
+│   ├── Config.cpp
+│   ├── Logger.cpp
+│   ├── MarketDataFeed.cpp
+│   ├── MatchingEngine.cpp
+│   ├── OrderBook.cpp
+│   ├── StreamProcessor.cpp
+│   └── main.cpp
+├── tests/
+│   ├── TestRunner.h         # Zero-dependency test framework
+│   ├── tests.cpp            # 80 unit tests
+│   └── benchmark.cpp        # Latency & throughput benchmarks
+├── docs/
+│   ├── ARCHITECTURE.md
+│   └── PERFORMANCE.md
+├── config.ini               # Runtime configuration
+├── Makefile
+└── CMakeLists.txt
+```
+
+---
+
+## Roadmap
+
+- [ ] WebSocket feed adapter (Binance / Polygon.io)
+- [ ] Historical data replay and strategy backtesting
+- [ ] SIMD-accelerated analytics (AVX2)
+- [ ] Prometheus metrics endpoint
+- [ ] GUI dashboard (ImGui or web-based)
+
+---
+
+## License
+
+Created for educational and demonstration purposes.
